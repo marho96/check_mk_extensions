@@ -16,14 +16,12 @@
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
     
 <tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
-<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="configparser.html">configparser</a><br>
-<a href="json.html">json</a><br>
-</td><td class="multicolumn"><a href="os.html">os</a><br>
-<a href="requests.html">requests</a><br>
-</td><td class="multicolumn"><a href="sys.html">sys</a><br>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="json.html">json</a><br>
+<a href="os.html">os</a><br>
+</td><td class="multicolumn"><a href="requests.html">requests</a><br>
 <a href="time.html">time</a><br>
 </td><td class="multicolumn"><a href="warnings.html">warnings</a><br>
-</td></tr></table></td></tr></table><p>
+</td><td class="multicolumn"></td></tr></table></td></tr></table><p>
 <table class="section">
 <tr class="decor index-decor heading-text">
 <td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Classes</strong></td></tr>
@@ -189,6 +187,19 @@ Args:<br>
 Returns:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;(rule,&nbsp;etag)</span></dd></dl>
 
+<dl><dt><a name="CMKRESTAPI-create_rule"><strong>create_rule</strong></a>(self, ruleset_name, folder, value_raw, conditions={}, properties={})</dt><dd><span class="code">Creates&nbsp;a&nbsp;rule<br>
+&nbsp;<br>
+Args:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ruleset_name<br>
+&nbsp;&nbsp;&nbsp;&nbsp;folder<br>
+&nbsp;&nbsp;&nbsp;&nbsp;conditions<br>
+&nbsp;&nbsp;&nbsp;&nbsp;properties<br>
+&nbsp;&nbsp;&nbsp;&nbsp;value_raw<br>
+&nbsp;<br>
+Returns:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;rule<br>
+&nbsp;&nbsp;&nbsp;&nbsp;etag</span></dd></dl>
+
 <dl><dt><a name="CMKRESTAPI-create_timeperiod"><strong>create_timeperiod</strong></a>(self, name, alias, active_time_ranges, exceptions=[], exclude=[])</dt><dd><span class="code">Create&nbsp;a&nbsp;time&nbsp;period<br>
 &nbsp;<br>
 Args:<br>
@@ -265,6 +276,11 @@ Args:<br>
 &nbsp;<br>
 Returns:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;Nothing</span></dd></dl>
+
+<dl><dt><a name="CMKRESTAPI-delete_rule"><strong>delete_rule</strong></a>(self, rule_id)</dt><dd><span class="code">Delete&nbsp;a&nbsp;rule<br>
+&nbsp;<br>
+Args:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;rule_id:&nbsp;The&nbsp;ID&nbsp;of&nbsp;the&nbsp;rule.</span></dd></dl>
 
 <dl><dt><a name="CMKRESTAPI-delete_timeperiod"><strong>delete_timeperiod</strong></a>(self, name, etag)</dt><dd><span class="code">Delete&nbsp;a&nbsp;time&nbsp;period<br>
 &nbsp;<br>
@@ -640,10 +656,10 @@ Returns:<br>
 <hr>
 Data descriptors defined here:<br>
 <dl><dt><strong>__dict__</strong></dt>
-<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</span></dd>
+<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables</span></dd>
 </dl>
 <dl><dt><strong>__weakref__</strong></dt>
-<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</span></dd>
+<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object</span></dd>
 </dl>
 </td></tr></table> <p>
 <table class="section">
@@ -670,10 +686,10 @@ Returns:<br>
 <hr>
 Data descriptors defined here:<br>
 <dl><dt><strong>__dict__</strong></dt>
-<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</span></dd>
+<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables</span></dd>
 </dl>
 <dl><dt><strong>__weakref__</strong></dt>
-<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</span></dd>
+<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object</span></dd>
 </dl>
 </td></tr></table></td></tr></table>
 </body></html>

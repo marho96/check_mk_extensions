@@ -1069,6 +1069,33 @@ class CMKRESTAPI():
 #   '----------------------------------------------------------------------'
 #.
 
+    def create_rule(self, ruleset_name, folder, value_raw, conditions={}, properties={}):
+        """Creates a rule
+
+        Args:
+            ruleset_name
+            folder
+            conditions
+            properties
+            value_raw
+
+        Returns:
+            rule
+            etag
+        """
+        return self._request(
+            self._post_url,
+            "domain-types/rule/collections/all",
+            data={
+                'ruleset': ruleset_name,
+                'properties': properties,
+                'value_raw': value_raw,
+                'folder': folder,
+                'conditions': conditions,
+            },
+        )
+        
+        
     def get_rules(self, ruleset_name):
         """Gets rules from ruleset by name
 
@@ -1084,6 +1111,18 @@ class CMKRESTAPI():
             "domain-types/rule/collections/all",
             data={'ruleset_name': ruleset_name},
         )
+
+    def delete_rule(self, rule_id):
+        """Delete a rule
+
+        Args:
+            rule_id: The ID of the rule.
+        """
+        return self._request(
+            self._delete_url,
+            f"/objects/rule/{rule_id}",
+        )
+        
 
 #   .--Host Tag Groups-----------------------------------------------------.
 #   |                _   _           _     _____                           |
