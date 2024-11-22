@@ -17,7 +17,7 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-from collections.abc import Mapping
+from collections.abc import Mapping # type: ignore
 from cmk.rulesets.v1 import Help, Label, Title
 from cmk.rulesets.v1.form_specs import (
     DefaultValue,
@@ -37,8 +37,9 @@ from cmk.rulesets.v1.form_specs import (
 )
 from cmk.rulesets.v1.rule_specs import ActiveCheck, Topic
 
-import logging
-logger = logging.getLogger(__name__)
+# from pprint import pformat # type: ignore
+# import logging
+# logger = logging.getLogger(__name__)
 
 _DAY = 24.0 * 3600.0
 
@@ -49,40 +50,47 @@ def _migrate_imap(raw_value: object) -> Mapping[str, object]:
         'crit': 2,
         'unknown': 3,
     }
-
-    logger.warning("raw_value: %s" % (raw_value))
+    # logger.warning("INVOKE _migrate_imap")
+    # logger.warning("raw_value: %s" % pformat(raw_value))
 
     if not isinstance(raw_value, tuple):
-        logger.warning("raw_value is not a tuple.")
+        # logger.warning("raw_value is not a tuple.")
         return raw_value
     
     new_value = {
         "service_desc": raw_value[0],
     }
-    logger.warning("new_value: %s" % new_value)
     settings = raw_value[1]
-    logger.warning("settings: %s" % settings)
     new_value["settings"] = settings.copy()
-    logger.warning("new_value: %s" % new_value)
     if "hostname" in settings:
         new_value["hostname"] = settings["hostname"]
         del(new_value["settings"]["hostname"])
-    logger.warning("new_value: %s" % new_value)
+    else:
+        new_value["hostname"] = "$HOSTADDRESS$"
     if "refuse" in settings:
         new_value["settings"]["refuse"] = state_value.get(settings["refuse"])
-    logger.warning("new_value: %s" % new_value)
     if "mismatch" in settings:
         new_value["settings"]["mismatch"] = state_value.get(settings["mismatch"])
-    logger.warning("new_value: %s" % new_value)
     if "certificate_age" in settings:
-        new_value["settings"]["certificate_age"] = ('fixed', (settings["certificate_age"][0] * 86400.0, settings["certificate_age"][1] * 86400.0))
-    logger.warning("new_value: %s" % new_value)
-    if "warning" in settings or "critical" in settings:
-        new_value["settings"]["response_time"] = ("fixed", (settings.get("warning"), settings.get("critical")))
-    logger.warning("new_value: %s" % new_value)
-    del(new_value["settings"]["warning"])
-    del(new_value["settings"]["critical"])
-    logger.warning("new_value: %s" % new_value)
+        new_value["settings"]["certificate_age"] = ('fixed', (settings["certificate_age"][0] * _DAY, settings["certificate_age"][1] * _DAY))
+    warning = None
+    critical = None
+    if "warning" in settings:
+        warning = float(settings["warning"])
+        del(new_value["settings"]["warning"])
+    if "critical" in settings:
+        critical = float(settings["critical"])
+        del(new_value["settings"]["critical"])
+
+    if warning or critical:
+        if not warning:
+            warning = critical
+        if not critical:
+            critical = 9999.999
+
+        new_value["settings"]["response_time"] = ("fixed", (warning, critical))
+
+    # logger.warning("new_value: %s" % pformat(new_value))
     
     return new_value
 

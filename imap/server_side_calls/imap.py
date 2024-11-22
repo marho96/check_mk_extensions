@@ -17,8 +17,8 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-from collections.abc import Iterator, Mapping, Sequence
-from enum import StrEnum
+from collections.abc import Iterator, Mapping, Sequence # type: ignore
+from enum import StrEnum # type: ignore
 
 from pydantic import BaseModel
 
@@ -30,9 +30,6 @@ from cmk.server_side_calls.v1 import (
     noop_parser,
     replace_macros,
 )
-
-from cmk.utils import debug
-from pprint import pprint
 
 class LevelsType(StrEnum):
     NO_LEVELS = "no_levels"
@@ -112,17 +109,9 @@ def convert_options(options) -> Iterator[str | Secret]:
                 yield "-c"
                 yield str(crit)
 
-    if 'warning' in options:
-        yield '-w'
-        yield options['warning']
-
-    if 'critical' in options:
-        yield '-c'
-        yield options['critical']
-
     if 'timeout' in options:
         yield '-t'
-        yield options['timeout']
+        yield str(options['timeout'])
 
 
 def generate_imap_commands(
@@ -135,12 +124,10 @@ def generate_imap_commands(
         service_desc = params["service_desc"]
     else:
         service_desc = "IMAP %s" % params["service_desc"]
+    if "hostname" not in params or not params['hostname']:
+        params["hostname"] = "$HOSTADDRESS$"
     args = ['-H', replace_macros(params["hostname"], macros)]
     args.extend(list(convert_options(options)))
-    if debug.enabled():
-        pprint(params)
-        pprint(host_config)
-        pprint(args)
     yield ActiveCheckCommand(
         service_description=service_desc,
         command_arguments=args,
@@ -151,27 +138,3 @@ active_check_imap = ActiveCheckConfig(
     parameter_parser=noop_parser,
     commands_function=generate_imap_commands,
 )
-
-# def check_imap_arguments(params):
-#     args = ""
-
-#     service_desc, options = params
-
-#     if 'hostname' in options:
-#         args += " -H %s" % quote_shell_string(options['hostname'])
-#     else:
-#         args += " -H $HOSTADDRESS$"
-
-#
-
-#     return args
-
-# def check_imap_description(params):
-#     return params[0]
-
-# active_check_info['imap'] = {
-#     "command_line": "$USER1$/check_imap $ARG1$",
-#     "argument_function": check_imap_arguments,
-#     "service_description": check_imap_description,
-#     "has_perfdata": True,
-#     }
