@@ -121,7 +121,7 @@ def generate_imap_commands(
     macros = host_config.macros
     options = params["settings"]
     if params["service_desc"].startswith('^'):
-        service_desc = params["service_desc"]
+        service_desc = params["service_desc"][1:]
     else:
         service_desc = "IMAP %s" % params["service_desc"]
     if "hostname" not in params or not params['hostname']:
