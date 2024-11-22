@@ -17,6 +17,7 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
+from collections.abc import Mapping
 from cmk.rulesets.v1 import Help, Label, Title
 from cmk.rulesets.v1.form_specs import (
     DefaultValue,
@@ -36,7 +37,54 @@ from cmk.rulesets.v1.form_specs import (
 )
 from cmk.rulesets.v1.rule_specs import ActiveCheck, Topic
 
+import logging
+logger = logging.getLogger(__name__)
+
 _DAY = 24.0 * 3600.0
+
+def _migrate_imap(raw_value: object) -> Mapping[str, object]:
+    state_value = {
+        'ok': 0,
+        'warn': 1,
+        'crit': 2,
+        'unknown': 3,
+    }
+
+    logger.warning("raw_value: %s" % (raw_value))
+
+    if not isinstance(raw_value, tuple):
+        logger.warning("raw_value is not a tuple.")
+        return raw_value
+    
+    new_value = {
+        "service_desc": raw_value[0],
+    }
+    logger.warning("new_value: %s" % new_value)
+    settings = raw_value[1]
+    logger.warning("settings: %s" % settings)
+    new_value["settings"] = settings.copy()
+    logger.warning("new_value: %s" % new_value)
+    if "hostname" in settings:
+        new_value["hostname"] = settings["hostname"]
+        del(new_value["settings"]["hostname"])
+    logger.warning("new_value: %s" % new_value)
+    if "refuse" in settings:
+        new_value["settings"]["refuse"] = state_value.get(settings["refuse"])
+    logger.warning("new_value: %s" % new_value)
+    if "mismatch" in settings:
+        new_value["settings"]["mismatch"] = state_value.get(settings["mismatch"])
+    logger.warning("new_value: %s" % new_value)
+    if "certificate_age" in settings:
+        new_value["settings"]["certificate_age"] = ('fixed', (settings["certificate_age"][0] * 86400.0, settings["certificate_age"][1] * 86400.0))
+    logger.warning("new_value: %s" % new_value)
+    if "warning" in settings or "critical" in settings:
+        new_value["settings"]["response_time"] = ("fixed", (settings.get("warning"), settings.get("critical")))
+    logger.warning("new_value: %s" % new_value)
+    del(new_value["settings"]["warning"])
+    del(new_value["settings"]["critical"])
+    logger.warning("new_value: %s" % new_value)
+    
+    return new_value
 
 def _valuespec_service_desc() -> String:
     return String(
@@ -123,18 +171,6 @@ def _valuespec_settings() -> Dictionary:
                     level_direction=LevelDirection.UPPER,
                     prefill_fixed_levels=InputHint((1.0, 5.0)),
                 )),
-            # "warning": DictElement(
-            #     parameter_form=Integer(
-            #         title = Title("Response time to result in warning status"),
-            #         unit_symbol = "sec",
-            #         prefill = DefaultValue(10),
-            #     )),
-            # "critical": DictElement(
-            #     parameter_form=Integer(
-            #         title = Title("Response time to result in critical status"),
-            #         unit_symbol = "sec",
-            #         prefill = DefaultValue(15),
-            #     )),
             "timeout": DictElement(
                 parameter_form=Integer(
                     title = Title("Seconds before connection times out"),
@@ -162,6 +198,7 @@ def _form_active_checks_imap() -> Dictionary:
                 required=True,
             ),
         },
+        migrate=_migrate_imap,
     )
 
 rule_spec_imap = ActiveCheck(
