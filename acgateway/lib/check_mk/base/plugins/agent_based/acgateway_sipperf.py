@@ -16,14 +16,12 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-from .agent_based_api.v1 import (
+from cmk.base.plugins.agent_based.agent_based_api.v1 import (
     contains,
     get_rate,
     get_value_store,
     register,
-    render,
     Metric,
-    OIDEnd,
     Result,
     Service,
     SNMPTree,
@@ -72,7 +70,7 @@ register.snmp_section(
 )
 
 def discover_acgateway_sipperf(section):
-    if len(section) == 2:
+    if len(section) == 2 and len(section[0]) == 1 and len(section[1]) == 1:
         yield Service()
 
 def check_acgateway_sipperf(section):
