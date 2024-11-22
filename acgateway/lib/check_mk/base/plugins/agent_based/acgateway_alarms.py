@@ -16,19 +16,19 @@
 # to the Free Software Foundation, Inc., 51 Franklin St,  Fifth Floor,
 # Boston, MA 02110-1301 USA.
 
-from .agent_based_api.v1 import (
+from cmk.base.plugins.agent_based.agent_based_api.v1 import (
+    all_of,
     contains,
     register,
     render,
     Metric,
-    OIDEnd,
     Result,
     Service,
     SNMPTree,
     State,
 )
 
-import datetime
+import datetime # type: ignore
 
 def _convert_date_and_time(octet_string):
     return datetime.datetime(
@@ -77,7 +77,10 @@ def parse_acgateway_alarms(string_table):
     
 register.snmp_section(
     name="acgateway_alarms",
-    detect=contains(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.5003.8.1.1"),
+    detect=all_of(
+        contains(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.5003.8.1.1"),
+        contains(".1.3.6.1.2.1.1.1.0", "SW Version: 7.20A"),
+    ),
     parse_function=parse_acgateway_alarms,
     fetch=[
         SNMPTree(

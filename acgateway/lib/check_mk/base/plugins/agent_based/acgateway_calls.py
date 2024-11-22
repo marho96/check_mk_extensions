@@ -17,6 +17,7 @@
 # Boston, MA 02110-1301 USA.
 
 from .agent_based_api.v1 import (
+    all_of,
     contains,
     get_rate,
     get_value_store,
@@ -32,12 +33,7 @@ from .agent_based_api.v1 import (
 
 import time
 
-from cmk.utils import debug
-from pprint import pprint
-
 def parse_acgateway_calls(string_table):
-    if debug.enabled():
-        pprint(string_table)
     section = None
     if len(string_table) == 1:
         for active_calls, total_calls, asr, acd in string_table:
@@ -47,13 +43,14 @@ def parse_acgateway_calls(string_table):
                 'asr': int(asr),
                 'acd': int(acd),
             }
-    if debug.enabled():
-        pprint(section)
     return section
 
 register.snmp_section(
     name="acgateway_calls",
-    detect=contains(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.5003.8.1.1"),
+    detect=all_of(
+        contains(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.5003.8.1.1"),
+        contains(".1.3.6.1.2.1.1.1.0", "SW Version: 7.20A"),
+    ),
     parse_function=parse_acgateway_calls,
     fetch=SNMPTree(
         base='.1.3.6.1.4.1.5003.10.8.2',

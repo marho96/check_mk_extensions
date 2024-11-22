@@ -17,6 +17,7 @@
 # Boston, MA 02110-1301 USA.
 
 from .agent_based_api.v1 import (
+    all_of,
     contains,
     register,
     render,
@@ -99,7 +100,10 @@ def parse_acgateway_sipinterface(string_table):
 
 register.snmp_section(
     name="acgateway_sipinterface",
-    detect=contains(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.5003.8.1.1"),
+    detect=all_of(
+        contains(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.5003.8.1.1"),
+        contains(".1.3.6.1.2.1.1.1.0", "SW Version: 7.20A"),
+    ),
     parse_function=parse_acgateway_sipinterface,
     fetch=[
         SNMPTree(
