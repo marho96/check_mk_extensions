@@ -36,7 +36,7 @@ def parse_dell_sc_cache(string_table):
     section = {}
     for line in string_table:
         section[line[0]] = {
-            'status': int(line[0]),
+            'status': int(line[1]),
             'name': line[2],
             'battery_status': int(line[3]),
             'battery_expiry': line[4],
