@@ -1,33 +1,58 @@
 {
-    "comment": "Configuration for ~/local/bin/holidays.py",
+  "comment": "Configuration for ~/local/bin/holidays.py",
 
-    "workdays": [
-        {"day": "monday",    "time_ranges": [{"start": "09:00", "end": "18:00"}]},
-        {"day": "tuesday",   "time_ranges": [{"start": "09:00", "end": "18:00"}]},
-        {"day": "wednesday", "time_ranges": [{"start": "09:00", "end": "18:00"}]},
-        {"day": "thursday",  "time_ranges": [{"start": "09:00", "end": "18:00"}]},
-        {"day": "friday",    "time_ranges": [{"start": "09:00", "end": "15:00"}]}
-    ],
+  "workdays": [
+    {"day": "monday",    "time_ranges": [{"start": "09:00", "end": "18:00"}]},
+    {"day": "tuesday",   "time_ranges": [{"start": "09:00", "end": "18:00"}]},
+    {"day": "wednesday", "time_ranges": [{"start": "09:00", "end": "18:00"}]},
+    {"day": "thursday",  "time_ranges": [{"start": "09:00", "end": "18:00"}]},
+    {"day": "friday",    "time_ranges": [{"start": "09:00", "end": "15:00"}]}
+  ],
 
-    "taggroup": {
-        "name": "holidays",
-        "title": "Feiertage",
-	"empty_title": "Keine Feiertage",
-        "topic": "Notifications"
+  "taggroup": {
+    "name": "holidays",
+    "title": "Feiertage",
+    "empty_title": "Keine Feiertage",
+    "topic": "Notifications"
+  },
+
+  "timeperiods": {
+    "oncall": {
+      "name": "oncall",
+      "title": "Bereitschaft"
     },
-
-    "timeperiods": {
-        "oncall": {
-            "name": "oncall",
-            "title": "Bereitschaft"
-        },
-        "workhours": {
-            "name": "workhours",
-            "title": "Arbeitszeit"
-        },
-        "holidays": {
-            "name": "holidays",
-            "title": "Feiertage"
-        }
+    "workhours": {
+      "name": "workhours",
+      "title": "Arbeitszeit"
+    },
+    "holidays": {
+      "name": "holidays",
+      "title": "Feiertage"
     }
+  },
+
+  "notification_rule_config": {
+    "notification_method": {
+      "notify_plugin": {
+        "option": "create_notification_with_custom_parameters",
+        "plugin_params": {
+            "api_password": "apikey",
+            "api_url": "http://fdihi/",
+            "api_user": "username",
+            "plugin_name": "coniugo"
+        }
+      }
+    },
+    "contact_selection": {
+      "all_contacts_of_the_notified_object": {
+          "state": "enabled"
+      },
+      "restrict_by_contact_groups": {
+          "state": "enabled",
+          "value": [
+              "sms"
+          ]
+      }
+    }
+  }
 }
