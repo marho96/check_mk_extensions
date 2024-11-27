@@ -16,6 +16,7 @@ from datetime import date # type: ignore
 from pprint import pprint # type: ignore
 
 apifeiertage = 'https://openholidaysapi.org/'
+created_by = f"created by {__file__}"
 
 #
 # defaults
@@ -93,7 +94,7 @@ add_holidays.add_argument('-E', '--exclude-in', help='Exclude in anderer Timeper
 add_region = subparsers.add_parser('add_region', help='add a new region to the configuration (base timeperiods and tag)')
 add_region.set_defaults(func='add_region')
 add_region.add_argument('-l', '--country', choices=countries, default=default_country, help='Land')
-add_region.add_argument('-s', '--state', choices=list(state_choices), help='Bundesland', required=True)
+add_region.add_argument('-s', '--state', choices=list(state_choices), help='Bundesland')
 add_auto_holidays = subparsers.add_parser('add_auto_holidays', help='add timeperiods from %s for all regions' % apifeiertage)
 add_auto_holidays.set_defaults(func='add_auto_holidays')
 add_auto_holidays.add_argument('-y', '--year')
@@ -192,7 +193,10 @@ def add_holiday_timeperiod(country=default_country, state=None, all_states=False
             pprint(tp)
 
         if exclude_in_default:
-            exclude_in_timeperiod(name, config['timeperiods']['workhours']['name'] + "_" + country + "_" + states[country][state]["ascii"])
+            if state:
+                exclude_in_timeperiod(name, config['timeperiods']['workhours']['name'] + "_" + country + "_" + states[country][state]["ascii"])
+            else:
+                exclude_in_timeperiod(name, config['timeperiods']['workhours']['name'] + "_" + country)
                 
         if exclude_in:
             exclude_in_timeperiod(name, exclude_in)
@@ -203,6 +207,8 @@ if 'func' not in args:
     sys.exit(1)
 if args.debug:
     pprint(args)
+    pprint(states)
+    pprint(states_orig)
 
 config = json.load(open(args.config_file))
 
@@ -263,26 +269,55 @@ if args.func == 'add_holidays':
     cmk.activate()
 
 if args.func == "add_region":
-    workhoursname = '%s_%s_%s' % ( config['timeperiods']['workhours']['name'],
-                                   args.country,
-                                   states[args.country][args.state]["ascii"] )
-    tp, etag = cmk.create_timeperiod(workhoursname,
-                                     '%s %s %s' % ( config['timeperiods']['workhours']['title'],
-                                                    args.country.upper(),
-                                                    states[args.country][args.state]["name"] ),
+    if not args.state:
+        if states[args.country]:
+            print(f"State needed for country {args.country}")
+            sys.exit(1)
+
+        tp_workhours_id = '%s_%s' % ( config['timeperiods']['workhours']['name'],
+                                      args.country)
+        tp_workhours_title = '%s %s' % ( config['timeperiods']['workhours']['title'],
+                                         args.country.upper())
+        tp_oncall_id = '%s_%s' % ( config['timeperiods']['oncall']['name'],
+                                      args.country)
+        tp_oncall_title = '%s %s' % ( config['timeperiods']['oncall']['title'],
+                                         args.country.upper())
+        tag = {
+            'id': "%s_%s" % (config['taggroup']['name'], args.country),
+            'title': "%s %s" % (config['taggroup']['title'], args.country.upper())
+        }
+    else:
+        tp_workhours_id = '%s_%s_%s' % ( config['timeperiods']['workhours']['name'],
+                                         args.country,
+                                        states[args.country][args.state]["ascii"] )
+        tp_workhours_title = '%s %s %s' % ( config['timeperiods']['workhours']['title'],
+                                            args.country.upper(),
+                                            states[args.country][args.state]["name"] )
+        tp_oncall_id = '%s_%s_%s' % ( config['timeperiods']['oncall']['name'],
+                                      args.country,
+                                      states[args.country][args.state]["ascii"] )
+        tp_oncall_title = '%s %s %s' % ( config['timeperiods']['oncall']['title'],
+                                         args.country.upper(),
+                                         states[args.country][args.state]["name"] )
+        tag = {
+            'id': "%s_%s_%s" % (config['taggroup']['name'], args.country, states[args.country][args.state]["ascii"]),
+            'title': "%s %s %s" % (config['taggroup']['title'], args.country.upper(), states[args.country][args.state]["name"])
+        }
+
+
+    tp, etag = cmk.create_timeperiod(tp_workhours_id,
+                                     tp_workhours_title,
                                      config['workdays'])
     if args.debug:
+        print("created time period")
         pprint(tp)
-        
-    tp, etag = cmk.create_timeperiod('%s_%s_%s' % ( config['timeperiods']['oncall']['name'],
-                                                    args.country,
-                                                    states[args.country][args.state]["ascii"] ),
-                                     '%s %s %s' % ( config['timeperiods']['oncall']['title'],
-                                                    args.country.upper(),
-                                                    states[args.country][args.state]["name"] ),
+
+    tp, etag = cmk.create_timeperiod(tp_oncall_id,
+                                     tp_oncall_title,
                                      always,
-                                     exclude=[workhoursname])
+                                     exclude=[tp_workhours_id])
     if args.debug:
+        print("created time period")
         pprint(tp)
 
     tg = None
@@ -290,11 +325,6 @@ if args.func == "add_region":
         tg, etag = cmk.get_host_tag_group(config['taggroup']['name'])
     except:
         pass
-
-    tag = {
-        'id': "%s_%s_%s" % (config['taggroup']['name'], args.country, states[args.country][args.state]["ascii"]),
-        'title': "%s %s %s" % (config['taggroup']['title'], args.country.upper(), states[args.country][args.state]["name"])
-    }
 
     if not tg:
         tg, etag = cmk.create_host_tag_group(
@@ -305,7 +335,7 @@ if args.func == "add_region":
                 tag,
             ],
             topic = config['taggroup'].get('topic'),
-            help = config['taggroup'].get('help')
+            help = config['taggroup'].get('help', created_by),
         )
     else:
         tags = tg['extensions']['tags']
@@ -314,13 +344,79 @@ if args.func == "add_region":
 
         cmk.edit_host_tag_group(config['taggroup']['name'], etag, tags=tags)
 
-    nrs, etag = cmk.get_notification_rules()
+    rule_config = {
+        'conditions': {
+            'match_host_tags': {
+                'state': 'enabled',
+                'value': [{
+                    'operator': 'is',
+                    'tag_group_id': config['taggroup']['name'],
+                    'tag_id': tag['id'],
+                    'tag_type': 'tag_group',
+                }],
+            },
+            'match_only_during_time_period': {
+                'state': 'enabled',
+                'value': tp_oncall_id,
+            },
+            'event_console_alerts': {'state': 'disabled'},
+            'match_check_types': {'state': 'disabled'},
+            'match_contact_groups': {'state': 'disabled'},
+            'match_exclude_hosts': {'state': 'disabled'},
+            'match_exclude_service_groups': {'state': 'disabled'},
+            'match_exclude_service_groups_regex': {'state': 'disabled'},
+            'match_exclude_services': {'state': 'disabled'},
+            'match_folder': {'state': 'disabled'},
+            'match_host_event_type': {'state': 'disabled'},
+            'match_host_groups': {'state': 'disabled'},
+            'match_host_labels': {'state': 'disabled'},
+            'match_hosts': {'state': 'disabled'},
+            'match_notification_comment': {'state': 'disabled'},
+            'match_plugin_output': {'state': 'disabled'},
+            'match_service_event_type': {'state': 'disabled'},
+            'match_service_groups': {'state': 'disabled'},
+            'match_service_groups_regex': {'state': 'disabled'},
+            'match_service_labels': {'state': 'disabled'},
+            'match_service_levels': {'state': 'disabled'},
+            'match_services': {'state': 'disabled'},
+            'match_sites': {'state': 'disabled'},
+            'restrict_to_notification_numbers': {'state': 'disabled'},
+            'throttle_periodic_notifications': {'state': 'disabled'},
+        },
+        'contact_selection': {
+            'all_contacts_of_the_notified_object': {'state': 'disabled'},
+            'restrict_by_contact_groups': {'state': 'disabled'},
+            'all_users': {'state': 'disabled'},
+            'all_users_with_an_email_address': {'state': 'disabled'},
+            'explicit_email_addresses': {'state': 'disabled'},
+            'members_of_contact_groups': {'state': 'disabled'},
+            'restrict_by_custom_macros': {'state': 'disabled'},
+            'the_following_users': {'state': 'disabled'},
+        },
+        'notification_method': {
+            'notification_bulking': {'state': 'disabled'},
+        },
+        'rule_properties': {
+            'allow_users_to_deactivate': {'state': 'disabled'},
+            'comment': created_by,
+            'description': tp_oncall_title,
+            'do_not_apply_this_rule': {'state': 'disabled'},
+            'documentation_url': '',
+        },
+    }
 
+    for key1, value1 in config["notification_rule_config"].items():
+        if key1 in rule_config:
+            for key2, value2 in value1.items():
+                rule_config[key1][key2] = value2
+        else:
+            rule_config[key1] = value1
+
+    nr, etag = cmk.create_notification_rule(rule_config)
     if args.debug:
-        pprint(nrs)
+        print("created notification rule:")
+        pprint(nr)
 
-    # for nr in nrs['value']:
-        
     cmk.activate()
     
 if args.func == 'add_auto_holidays':
@@ -330,34 +426,41 @@ if args.func == 'add_auto_holidays':
         if tp['id'].startswith(config['timeperiods']['workhours']['name']):
             if args.debug:
                 print(f"found {tp['id']}")
-            _, country, state = tp['id'].split('_')
-            add_holiday_timeperiod(country=country, state=states_orig[country][state], current_year=args.current_year, set_year=args.year)
+            try:
+                _, country, state = tp['id'].split('_')
+                add_holiday_timeperiod(country=country, state=states_orig[country][state], current_year=args.current_year, set_year=args.year)
+            except ValueError:
+                _, country = tp['id'].split('_')
+                add_holiday_timeperiod(country=country, state=None, current_year=args.current_year, set_year=args.year)
             changes = True
     if changes:
         cmk.activate()
 
 if args.func == "cleanup":
-    tps, etag = cmk.get_timeperiods()
-
-    if args.debug:
-        pprint(tps)
+    nrs, etag = cmk.get_all_notification_rules()
+    for nr in nrs['value']:
+        if nr['extensions']['rule_config']['rule_properties']['comment'] == created_by:
+            if args.debug:
+                print(f"removing notification rule {nr['id']}")
+            cmk.delete_notification_rule(nr['id'])
 
     changes = False
-        
+
+    tps, etag = cmk.get_timeperiods()
     for typ in ['oncall', 'workhours', 'holidays']:
         # order is important
         for tp in tps['value']:
             if tp['id'].startswith(config['timeperiods'][typ]['name']):
                 if args.debug:
-                    print(f"removing {tp['id']}")
+                    print(f"removing time period {tp['id']}")
                 cmk.delete_timeperiod(tp['id'], '*')
                 changes = True
 
     try:
         cmk.delete_host_tag_group(config['taggroup']['name'])
-        if args.debug:
-            print(f"remove host tag group {config['taggroup']['name']}")
         changes = True
+        if args.debug:
+            print(f"removed host tag group {config['taggroup']['name']}")
     except:
         pass
     
