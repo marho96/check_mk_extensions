@@ -24,14 +24,9 @@
 # Boston, MA 02110-1301 USA.
 
 
+
 # A check for hardware stuff on Areca raid controllers.
 
-# model, serial, firmware (actually 3 firmwares, but one should do?)
-#SNMPv2-SMI::enterprises.18928.1.2.1.1.0 = STRING: "ARC-1680"
-#SNMPv2-SMI::enterprises.18928.1.2.1.3.0 = STRING: "Y952CABVAR601133"
-#SNMPv2-SMI::enterprises.18928.1.2.1.4.0 = STRING: "V1.49 2010-12-02"
-#
-#
 # Voltages and battery
 #.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.1 = INTEGER: 1
 #.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.2 = INTEGER: 2
@@ -63,65 +58,61 @@
 
 #snmp_info   : oid(".1.3.6.1.4.1.18928.1.2.2.1.8.1"), [ "1", "2", "3" ]
 
-# Fans
+# Turn this into something much sweeter.
+# The battery status doesnt really belong in here.
+#{'voltages': {'12V': 11977,
+#              'Battery Status': 255,
+#              '5V': 5053,
+#              'PCI-E  +1.8V': 1808}}
 
-#.1.3.6.1.4.1.18928.1.2.2.1.9.1.1.1 = INTEGER: 1
-#.1.3.6.1.4.1.18928.1.2.2.1.9.1.2.1 = STRING: "CPU Fan"
-#.1.3.6.1.4.1.18928.1.2.2.1.9.1.3.1 = INTEGER: 0
+def parse_areca(info, what):
+    areca_info = {}
+    areca_info[what] = {}
+    for line in info[0]:
+        if len(line) == 3:
+            id, sensor_name, value = line
+            # remove spaces from the sensor name
+            if len(sensor_name.split()) > 1:
+                s_parts = sensor_name.split()
+                sensor_name = s_parts[0] + " " + s_parts[-1]
+            areca_info[what][sensor_name] = saveint(value)
+    return areca_info        
 
-# snmp_info  : oid(".1.3.6.1.4.1.18928.1.2.2.1.9.1"), [ "1", "2", "3" ]
-
-
-# Temperature
-
-#.1.3.6.1.4.1.18928.1.2.2.1.10.1.1.1 = INTEGER: 1
-#.1.3.6.1.4.1.18928.1.2.2.1.10.1.1.2 = INTEGER: 2
-#.1.3.6.1.4.1.18928.1.2.2.1.10.1.2.1 = STRING: "CPU Temperature"
-#.1.3.6.1.4.1.18928.1.2.2.1.10.1.2.2 = STRING: "Controller Temp."
-#.1.3.6.1.4.1.18928.1.2.2.1.10.1.3.1 = INTEGER: 80
-#.1.3.6.1.4.1.18928.1.2.2.1.10.1.3.2 = INTEGER: 35
-
-# snmp_info  : oid(".1.3.6.1.4.1.18928.1.2.2.1.10.1"), [ "1", "2", "3" ]
-# default levels will not work well in this check
-areca_hba_temp_default_levels = (63, 69)
-def inventory_areca_hba_temp(info):
+def inventory_areca_hba_voltages(info):
     inventory = []
-    for line in info[0]:
-        # Break out the sensor name, removing "Temperature or "temp"
-        if "temp" in line[1].lower():
-           # if the name is not the first word, you can loop over the parts here.
-           sensor = line[1].split(" ")[0]
+
+    areca_info = parse_areca(info, "voltages")
+    for sensor_name in areca_info["voltages"].keys():
+        # Skip the battery sensor, I dont have one, impossible to
+        # make the check match for it.
+        if sensor_name.lower() != "battery status":
+            inventory.append((sensor_name, None))
+    return  inventory
+
+
+def check_areca_hba_voltages(item, _no_params, info):
+    areca_info = parse_areca(info, "voltages")
+    epsilon = 10
+    if item in areca_info["voltages"].keys():
+        # i'm fetching the voltage from the label and try to alert on the difference.
+        v_cur   = float(areca_info["voltages"][item]) / 1000.0
+        v_rated = float(item.split()[-1].replace("V", ""))
+        perfdata = [ ( "voltage", v_cur ) ]
+        # this is now just a hardcoded level, could be improved.
+        if v_cur < v_rated - v_rated / 100*epsilon or v_cur > v_rated + v_rated / 100*epsilon:
+            return (1, "WARNING - Voltage is %02.3fV" % v_cur, perfdata)
         else:
-           sensor = line[1]
-        inventory.append((sensor, "areca_hba_temp_default_levels"))
-    return inventory
+            return (0, "OK - Voltage is ok", perfdata)
+    return (3, "UNKNOWN - Voltage sensor not found in agent output")
 
 
-def check_areca_hba_temp(item, params, info):
-    for line in info[0]:
-        if line[1].startswith(item):
-            warn, crit = params
-            temp = saveint(line[2])
-            if   temp > crit:
-                state = 2
-            elif temp > warn:
-                state = 1
-            else:
-                state = 0
-
-            perfdata = [ ( "temp", temp, warn, crit ) ]
-            return (state, "Temperature is %dC" % temp, perfdata)
-    
-    return (3, "UNKNOWN - sensor not found in agent output")
-
-
-check_info["areca_hba_temp"]  = {
-    "check_function"      : check_areca_hba_temp,
-    "inventory_function"  : inventory_areca_hba_temp,
-    "has_perfdata"        : True,
-    "service_description" : "Temperature %s",
-    # Find Areca SAS MIB
-    "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-    "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.2.1.10.1", [ "1", "2", "3" ])],
-}
+# check_info["areca_hba_voltages"]  = {
+#     "check_function"      : check_areca_hba_voltages,
+#     "inventory_function"  : inventory_areca_hba_voltages,
+#     "has_perfdata"        : True,
+#     "service_description" : "Voltage %s",
+#     # Find Areca SAS MIB
+#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
+#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.2.1.8.1", [ "1", "2", "3" ])],
+# }
 

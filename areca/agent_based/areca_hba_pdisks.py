@@ -88,30 +88,30 @@ def check_areca_hba_pdisks(item, _no_params, info):
     return (3, "Disk not found in agent output")
 
 
-check_info["areca_hba_pdisks"]  = {
-    "check_function"      : check_areca_hba_pdisks,
-    "inventory_function"  : inventory_areca_hba_pdisks,
-    "has_perfdata"        : False,
-    "service_description" : "PDisk Enc/Sl %s",
-    # Find Areca SAS MIB
-    "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-    "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.3", 
-        # unclear: how does it look in jbod mode?
-        # where does i get pony?
-        # There's up to 8 enclosures, "1" is hardcoded having 8 slots.
-        # probably it's the ext. SAS connector. 
-                                  [ "1", "2", "3", "4", "5", "6", "7", "8" ], 
-        # Below each enclosure there's the following structure for disk data
-                                  [ "4.1.1", # The slot ids
-                                    "4.1.2", # The slot descrs
-                                    "4.1.3", # The disk model
-                                    "4.1.4", # The disk fw
-                                    "4.1.5", # The disk size
-                       # The MIB seems wrong about the next ones
-                                    "4.1.6", #
-                                    "4.1.7", # 
-                                    "4.1.8", # Textual disk state
-                                  ]
-                            )],
-}
+# check_info["areca_hba_pdisks"]  = {
+#     "check_function"      : check_areca_hba_pdisks,
+#     "inventory_function"  : inventory_areca_hba_pdisks,
+#     "has_perfdata"        : False,
+#     "service_description" : "PDisk Enc/Sl %s",
+#     # Find Areca SAS MIB
+#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
+#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.3", 
+#         # unclear: how does it look in jbod mode?
+#         # where does i get pony?
+#         # There's up to 8 enclosures, "1" is hardcoded having 8 slots.
+#         # probably it's the ext. SAS connector. 
+#                                   [ "1", "2", "3", "4", "5", "6", "7", "8" ], 
+#         # Below each enclosure there's the following structure for disk data
+#                                   [ "4.1.1", # The slot ids
+#                                     "4.1.2", # The slot descrs
+#                                     "4.1.3", # The disk model
+#                                     "4.1.4", # The disk fw
+#                                     "4.1.5", # The disk size
+#                        # The MIB seems wrong about the next ones
+#                                     "4.1.6", #
+#                                     "4.1.7", # 
+#                                     "4.1.8", # Textual disk state
+#                                   ]
+#                             )],
+# }
 

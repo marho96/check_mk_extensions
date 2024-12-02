@@ -57,22 +57,22 @@ def check_areca_hba_raidsets(item, _no_params, info):
     return (3, "UNKW - Raidset not found in agent output")
 
 
-check_info["areca_hba_raidsets"]  = {
-    "check_function"      : check_areca_hba_raidsets,
-    "inventory_function"  : inventory_areca_hba_raidsets,
-    "has_perfdata"        : False,
-    "service_description" : "Raid set %s",
-    # Find Areca SAS MIB
-    "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-    "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.4.1.1", 
-        # Below each enclosure there's the following structure for disk data
-                                  [  #"2", "4" 
-          "1", # Raidset id
-          "2", # Raidset name
-          "4", # Raidset State
-          "7", # Member disk size
-          "8", # Member disk names and states
-                                  ]
-                            )],
-}
+# check_info["areca_hba_raidsets"]  = {
+#     "check_function"      : check_areca_hba_raidsets,
+#     "inventory_function"  : inventory_areca_hba_raidsets,
+#     "has_perfdata"        : False,
+#     "service_description" : "Raid set %s",
+#     # Find Areca SAS MIB
+#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
+#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.4.1.1", 
+#         # Below each enclosure there's the following structure for disk data
+#                                   [  #"2", "4" 
+#           "1", # Raidset id
+#           "2", # Raidset name
+#           "4", # Raidset State
+#           "7", # Member disk size
+#           "8", # Member disk names and states
+#                                   ]
+#                             )],
+# }
 

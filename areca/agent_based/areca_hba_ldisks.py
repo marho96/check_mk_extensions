@@ -58,7 +58,7 @@ def discover_areca_hba_ldisks(section) -> DiscoveryResult:
     for id in section.keys():
         yield Service(item=id)
 
-def check_areca_hba_ldisks(item, _no_params, section) -> CheckResult:
+def check_areca_hba_ldisks(item, section) -> CheckResult:
     if item in section:
         vsf = section[item]
         state = State.UNKNOWN
@@ -79,6 +79,7 @@ snmp_section_areca_hba_ldisks = SimpleSNMPSection(
     name = "areca_hba_ldisks",
     parse_function = parse_areca_hba_ldisks,
     detect = startswith(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.18928.1"),
+    # detect = lambda oid: True,
     fetch = SNMPTree(
         base = ".1.3.6.1.4.1.18928.1.2.5.1.1",
         oids = [
