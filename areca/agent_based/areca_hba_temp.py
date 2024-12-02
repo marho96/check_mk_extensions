@@ -10,7 +10,6 @@
 # +------------------------------------------------------------------+
 #
 # This file is an addon for Check_MK.
-# The official homepage for this check is at http://bitbucket.org/darkfader
 #
 # check_mk is free software;  you can redistribute it and/or modify it
 # under the  terms of the  GNU General Public License  as published by
@@ -24,54 +23,6 @@
 # Boston, MA 02110-1301 USA.
 
 
-# A check for hardware stuff on Areca raid controllers.
-
-# model, serial, firmware (actually 3 firmwares, but one should do?)
-#SNMPv2-SMI::enterprises.18928.1.2.1.1.0 = STRING: "ARC-1680"
-#SNMPv2-SMI::enterprises.18928.1.2.1.3.0 = STRING: "Y952CABVAR601133"
-#SNMPv2-SMI::enterprises.18928.1.2.1.4.0 = STRING: "V1.49 2010-12-02"
-#
-#
-# Voltages and battery
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.1 = INTEGER: 1
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.2 = INTEGER: 2
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.3 = INTEGER: 3
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.4 = INTEGER: 4
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.5 = INTEGER: 5
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.6 = INTEGER: 6
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.7 = INTEGER: 7
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.8 = INTEGER: 8
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.1.9 = INTEGER: 9
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.1 = STRING: "12V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.2 = STRING: "5V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.3 = STRING: "3.3V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.4 = STRING: "DDR-II +1.8V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.5 = STRING: "PCI-E  +1.8V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.6 = STRING: "CPU    +1.8V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.7 = STRING: "CPU    +1.2V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.8 = STRING: "DDR-II +0.9V"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.2.9 = STRING: "Battery Status"
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.1 = INTEGER: 11977
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.2 = INTEGER: 5026
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.3 = INTEGER: 3296
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.4 = INTEGER: 1808
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.5 = INTEGER: 1808
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.6 = INTEGER: 1824
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.7 = INTEGER: 1184
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.8 = INTEGER: 896
-#.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.9 = INTEGER: 255
-
-#snmp_info   : oid(".1.3.6.1.4.1.18928.1.2.2.1.8.1"), [ "1", "2", "3" ]
-
-# Fans
-
-#.1.3.6.1.4.1.18928.1.2.2.1.9.1.1.1 = INTEGER: 1
-#.1.3.6.1.4.1.18928.1.2.2.1.9.1.2.1 = STRING: "CPU Fan"
-#.1.3.6.1.4.1.18928.1.2.2.1.9.1.3.1 = INTEGER: 0
-
-# snmp_info  : oid(".1.3.6.1.4.1.18928.1.2.2.1.9.1"), [ "1", "2", "3" ]
-
-
 # Temperature
 
 #.1.3.6.1.4.1.18928.1.2.2.1.10.1.1.1 = INTEGER: 1
@@ -81,47 +32,58 @@
 #.1.3.6.1.4.1.18928.1.2.2.1.10.1.3.1 = INTEGER: 80
 #.1.3.6.1.4.1.18928.1.2.2.1.10.1.3.2 = INTEGER: 35
 
-# snmp_info  : oid(".1.3.6.1.4.1.18928.1.2.2.1.10.1"), [ "1", "2", "3" ]
-# default levels will not work well in this check
-areca_hba_temp_default_levels = (63, 69)
-def inventory_areca_hba_temp(info):
-    inventory = []
-    for line in info[0]:
-        # Break out the sensor name, removing "Temperature or "temp"
-        if "temp" in line[1].lower():
-           # if the name is not the first word, you can loop over the parts here.
-           sensor = line[1].split(" ")[0]
-        else:
-           sensor = line[1]
-        inventory.append((sensor, "areca_hba_temp_default_levels"))
-    return inventory
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Result,
+    Service,
+    SimpleSNMPSection,
+    SNMPTree,
+    State,
+    startswith,
+)
+from cmk.plugins.lib import temperature
 
 
-def check_areca_hba_temp(item, params, info):
-    for line in info[0]:
-        if line[1].startswith(item):
-            warn, crit = params
-            temp = saveint(line[2])
-            if   temp > crit:
-                state = 2
-            elif temp > warn:
-                state = 1
-            else:
-                state = 0
+def parse_areca_hba_temp(string_table):
+    section = {}
+    for name, temp in string_table:
+        newname = []
+        for namepart in name.split():
+            if "temp" not in namepart.lower():
+                newname.append(namepart)
+        section[" ".join(newname)] = int(temp)
+    return section
 
-            perfdata = [ ( "temp", temp, warn, crit ) ]
-            return (state, "Temperature is %dC" % temp, perfdata)
-    
-    return (3, "UNKNOWN - sensor not found in agent output")
+def discover_areca_hba_temp(section) -> DiscoveryResult:
+    for name in section.keys():
+        yield Service(item=name)
 
+def check_areca_hba_temp(item, params, section) -> CheckResult:
+    if item in section:
+        temp = section[item]
+        yield from temperature.check_temperature(temp, params)
 
-# check_info["areca_hba_temp"]  = {
-#     "check_function"      : check_areca_hba_temp,
-#     "inventory_function"  : inventory_areca_hba_temp,
-#     "has_perfdata"        : True,
-#     "service_description" : "Temperature %s",
-#     # Find Areca SAS MIB
-#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.2.1.10.1", [ "1", "2", "3" ])],
-# }
+snmp_section_areca_hba_temp = SimpleSNMPSection(
+    name="areca_hba_temp",
+    parse_function=parse_areca_hba_temp,
+    detect = startswith(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.18928.1"),
+    fetch = SNMPTree(
+        base=".1.3.6.1.4.1.18928.1.2.2.1.10.1",
+        oids=[
+            "2", # ARECA-SNMP-MIB::hwControllerBoardTempDesc
+            "3", # ARECA-SNMP-MIB::hwControllerBoardTempValue
+        ],
+    ),
+)
 
+check_plugin_areca_hba_temp = CheckPlugin(
+    name="areca_hba_temp",
+    sections=["areca_hba_temp"],
+    service_name="Temperature %s",
+    discovery_function=discover_areca_hba_temp,
+    check_function=check_areca_hba_temp,
+    check_default_parameters={},
+    check_ruleset_name="temperature",
+)

@@ -10,7 +10,6 @@
 # +------------------------------------------------------------------+
 #
 # This file is an addon for Check_MK.
-# The official homepage for this check is at http://bitbucket.org/darkfader
 #
 # check_mk is free software;  you can redistribute it and/or modify it
 # under the  terms of the  GNU General Public License  as published by
@@ -24,55 +23,68 @@
 # Boston, MA 02110-1301 USA.
 
 
-def inventory_areca_hba_raidsets(info):
-    inventory = []
-
-    # not sure why i end up with my info double stacked
-    # but i'm sure it's me.
-    for line in info[0]:
-        if len(line) == 5:
-            rs_id, rs_name, rs_state, rs_mem_sz, rs_mem_names = line
-            inventory.append((rs_id, None))
-    return inventory
-
-def check_areca_hba_raidsets(item, _no_params, info):
-    for line in info[0]:
-        rs_id, rs_name, rs_state, rs_mem_sz, rs_mem_names = line
-
-        if rs_id == item:
-            if   rs_state == "Normal":
-                state = 0
-            elif rs_state == "Rebuilding":
-                state = 1
-            # I hope Offline is correct.
-            elif rs_state in [ "Degraded", "Offline" ]:
-                state = 2
-            # Any state we don't know.
-            else:
-                state = 3
-
-            msg = "%s is %s. (members: %s)" % (rs_name, rs_state, rs_mem_names)
-            return (state, msg)
-        
-    return (3, "UNKW - Raidset not found in agent output")
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Result,
+    Service,
+    SimpleSNMPSection,
+    SNMPTree,
+    State,
+    startswith,
+)
 
 
-# check_info["areca_hba_raidsets"]  = {
-#     "check_function"      : check_areca_hba_raidsets,
-#     "inventory_function"  : inventory_areca_hba_raidsets,
-#     "has_perfdata"        : False,
-#     "service_description" : "Raid set %s",
-#     # Find Areca SAS MIB
-#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.4.1.1", 
-#         # Below each enclosure there's the following structure for disk data
-#                                   [  #"2", "4" 
-#           "1", # Raidset id
-#           "2", # Raidset name
-#           "4", # Raidset State
-#           "7", # Member disk size
-#           "8", # Member disk names and states
-#                                   ]
-#                             )],
-# }
+def parse_areca_hba_raidsets(string_table):
+    section = {}
+    for id, name, state, members in string_table:
+        section[id] = {
+            "name": name,
+            "state": state,
+            "members": members,
+        }
+    return section
 
+def discover_areca_hba_raidsets(section) -> DiscoveryResult:
+    for id in section.keys():
+        yield Service(item=id)
+
+def check_areca_hba_raidsets(item, section) -> CheckResult:
+    if item in section:
+        data = section[item]
+        if data["state"] == "Normal":
+            state = State.OK
+        elif data["state"] == "Rebuilding":
+            state = State.WARN
+        elif data["state"] in ["Degraded", "Offline"]:
+            state = State.CRIT
+        else:
+            state = State.UNKNOWN
+        yield Result(
+            state=state,
+            summary="%s is %s, members: %s" % (data["name"], data["state"], data["members"])
+        )
+
+snmp_section_areca_hba_raidsets = SimpleSNMPSection(
+    name="areca_hba_raidsets",
+    parse_function=parse_areca_hba_raidsets,
+    detect = startswith(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.18928.1"),
+    fetch = SNMPTree(
+        base=".1.3.6.1.4.1.18928.1.2.4.1.1",
+        oids=[ 
+            "1", # ARECA-SNMP-MIB::raidNumber
+            "2", # ARECA-SNMP-MIB::raidName
+            "4", # ARECA-SNMP-MIB::raidState
+            "8", # ARECA-SNMP-MIB::raidMemberDiskChannels
+        ],
+    ),
+)
+
+check_plugin_areca_hba_raidsets = CheckPlugin(
+    name="areca_hba_raidsets",
+    sections=["areca_hba_raidsets"],
+    service_name="Raid set %s",
+    discovery_function=discover_areca_hba_raidsets,
+    check_function=check_areca_hba_raidsets,
+)

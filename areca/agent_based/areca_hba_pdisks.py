@@ -10,7 +10,6 @@
 # +------------------------------------------------------------------+
 #
 # This file is an addon for Check_MK.
-# The official homepage for this check is at http://bitbucket.org/darkfader
 #
 # check_mk is free software;  you can redistribute it and/or modify it
 # under the  terms of the  GNU General Public License  as published by
@@ -52,66 +51,95 @@
 #                         |     +-----field
 #                         +-------enclosure
 
+max_enclosures = 8
 
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Result,
+    Service,
+    SNMPSection,
+    SNMPTree,
+    State,
+    startswith,
+)
+from cmk.agent_based.v2.render import bytes
 
-def inventory_areca_hba_pdisks(info):
-    inventory = []
-    for enclosure_entry in info:
-        for slot_entry in enclosure_entry:
-            if len(slot_entry) == 8 and slot_entry[-1].split()[0] != "Empty":
-                enc, slot = slot_entry[0].split(".")
-                diskname = ("%d/%02d" % (int(enc), int(slot)))
-                inventory.append((diskname, None))
-    return inventory
+def parse_areca_hba_pdisks(string_table):
+    section = {}
+    slot_type = {
+        "1": "SATA",
+        "2": "SAS",
+    }
+    for encl in range(max_enclosures):
+        installed, desc = string_table[encl * 2][0]
+        if installed == "1":
+            section[encl + 1] = {
+                "name": desc,
+                "slots": {},
+            }
+            for id, desc, name, serial, firmver, capacity, typ, state in string_table[encl * 2 + 1]:
+                if state != "Empty Slot":
+                    section[encl + 1]["slots"][int(id)] = {
+                        "desc": desc,
+                        "name": name,
+                        "serial": serial,
+                        "firmver": firmver,
+                        "capacity": int(capacity) * 1024 *1024,
+                        "type": slot_type.get(typ),
+                        "state": state,
+                    }
+    return section
 
-def check_areca_hba_pdisks(item, _no_params, info):
-    for enclosure_entry in info:
-        for slot_entry in enclosure_entry:
-            enc, slot = slot_entry[0].split(".")
-            diskname = ("%d/%02d" % (int(enc), int(slot)))
+def discover_areca_hba_pdisks(section) -> DiscoveryResult:
+    for encl in section.keys():
+        for slot in section[encl]["slots"].keys():
+            yield Service(item="%d/%02d" % (encl, slot))
 
-            # We could do smarter by tracking the serial at inventory.
-            # I decided to not get too smart, and so we're not following a disk 
-            # around if you put it somewhere else.
-            if diskname == item:
+def check_areca_hba_pdisks(item, section) -> CheckResult:
+    encl, slot = list(map(int, item.split("/")))
+    if encl in section:
+        if slot in section[encl]["slots"]:
+            data = section[encl]["slots"][slot]
+            yield Result(state=State.OK, summary="%s %s %s (%s)" % (data["name"], data["serial"], data["firmver"], bytes(data["capacity"])))
+            if data["state"] == "Failed":
+                yield Result(state=State.CRIT, summary="failed")
 
-                disk_descr = "(%s %s)" % (slot_entry[2], slot_entry[3])
+snmp_sections = []
+for encl in range(1, max_enclosures + 1):
+    snmp_sections.append(SNMPTree(
+        base = f".1.3.6.1.4.1.18928.1.2.3.{encl}",
+        oids = [
+            "1.0", # ARECA-SNMP-MIB::hddEnclosureNNInstalled
+            "2.0", # ARECA-SNMP-MIB::hddEnclosureNNDescription
+        ],
+    ))
+    snmp_sections.append(SNMPTree(
+        base = f".1.3.6.1.4.1.18928.1.2.3.{encl}.4.1",
+        oids = [
+            "1", # ARECA-SNMP-MIB::hddEnclosureNNSlots
+            "2", # ARECA-SNMP-MIB::hddEnclosureNNDesc
+            "3", # ARECA-SNMP-MIB::hddEnclosureNNName
+            "4", # ARECA-SNMP-MIB::hddEnclosureNNSerial
+            "5", # ARECA-SNMP-MIB::hddEnclosureNNFirmVer
+            "6", # ARECA-SNMP-MIB::hddEnclosureNNCapacity
+            "7", # ARECA-SNMP-MIB::hddEnclosureNNType
+            "8", # ARECA-SNMP-MIB::hddEnclosureNNState
+        ],
+    ))
 
-                # What I'm checking here is a field that SEEMS to be the right one.
-                # Contact me if this seems wrong. Someone needs to test / adjust it 
-                # with some JBOD mode array and pull some disks.
-                if slot_entry[7] == "Failed": 
-                    return (2, "CRIT - Disk is failed. %s" % disk_descr)
-                else:
-                    return (0, "OK - Disk is OK. %s" % disk_descr)
+snmp_section_areca_hba_pdisks = SNMPSection(
+    name = "areca_hba_pdisks",
+    parse_function = parse_areca_hba_pdisks,
+    detect = startswith(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.18928.1"),
+    fetch = snmp_sections,
+)
 
-    return (3, "Disk not found in agent output")
-
-
-# check_info["areca_hba_pdisks"]  = {
-#     "check_function"      : check_areca_hba_pdisks,
-#     "inventory_function"  : inventory_areca_hba_pdisks,
-#     "has_perfdata"        : False,
-#     "service_description" : "PDisk Enc/Sl %s",
-#     # Find Areca SAS MIB
-#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.3", 
-#         # unclear: how does it look in jbod mode?
-#         # where does i get pony?
-#         # There's up to 8 enclosures, "1" is hardcoded having 8 slots.
-#         # probably it's the ext. SAS connector. 
-#                                   [ "1", "2", "3", "4", "5", "6", "7", "8" ], 
-#         # Below each enclosure there's the following structure for disk data
-#                                   [ "4.1.1", # The slot ids
-#                                     "4.1.2", # The slot descrs
-#                                     "4.1.3", # The disk model
-#                                     "4.1.4", # The disk fw
-#                                     "4.1.5", # The disk size
-#                        # The MIB seems wrong about the next ones
-#                                     "4.1.6", #
-#                                     "4.1.7", # 
-#                                     "4.1.8", # Textual disk state
-#                                   ]
-#                             )],
-# }
-
+check_plugin_areca_hba_pdisks = CheckPlugin(
+    name = "areca_hba_pdisks",
+    sections = ["areca_hba_pdisks"],
+    service_name = "PDisk Enc/Sl %s",
+    discovery_function = discover_areca_hba_pdisks,
+    check_function = check_areca_hba_pdisks,
+)

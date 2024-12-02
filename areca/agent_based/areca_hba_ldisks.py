@@ -10,7 +10,6 @@
 # +------------------------------------------------------------------+
 #
 # This file is an addon for Check_MK.
-# The official homepage for this check is at http://bitbucket.org/darkfader
 #
 # check_mk is free software;  you can redistribute it and/or modify it
 # under the  terms of the  GNU General Public License  as published by
@@ -36,9 +35,6 @@ from cmk.agent_based.v2 import (
     startswith,
 )
 
-from cmk.utils import debug
-from pprint import pprint # type: ignore
-
 def parse_areca_hba_ldisks(string_table):
     section = {}
     for vsf_id, vsf_name, vsf_rsf, vsf_size, vsf_state, vsf_rbld in string_table:
@@ -49,9 +45,6 @@ def parse_areca_hba_ldisks(string_table):
             "state": vsf_state,
             "rbld": int(vsf_rbld) / 10.0,
         }
-    if debug.enabled():
-        pprint(string_table)
-        pprint(section)
     return section
 
 def discover_areca_hba_ldisks(section) -> DiscoveryResult:
@@ -79,7 +72,6 @@ snmp_section_areca_hba_ldisks = SimpleSNMPSection(
     name = "areca_hba_ldisks",
     parse_function = parse_areca_hba_ldisks,
     detect = startswith(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.18928.1"),
-    # detect = lambda oid: True,
     fetch = SNMPTree(
         base = ".1.3.6.1.4.1.18928.1.2.5.1.1",
         oids = [

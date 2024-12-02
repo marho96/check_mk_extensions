@@ -68,7 +68,6 @@ snmp_section_areca_hba_fans = SimpleSNMPSection(
     fetch = SNMPTree(
         base = ".1.3.6.1.4.1.18928.1.2.2.1.9.1",
         oids = [
-            # "1", # hwControllerBoardFanIndex
             "2", # hwControllerBoardFanDesc
             "3", # hwControllerBoardFanSpeed
         ]

@@ -10,7 +10,6 @@
 # +------------------------------------------------------------------+
 #
 # This file is an addon for Check_MK.
-# The official homepage for this check is at http://bitbucket.org/darkfader
 #
 # check_mk is free software;  you can redistribute it and/or modify it
 # under the  terms of the  GNU General Public License  as published by
@@ -56,8 +55,6 @@
 #.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.8 = INTEGER: 896
 #.1.3.6.1.4.1.18928.1.2.2.1.8.1.3.9 = INTEGER: 255
 
-#snmp_info   : oid(".1.3.6.1.4.1.18928.1.2.2.1.8.1"), [ "1", "2", "3" ]
-
 # Turn this into something much sweeter.
 # The battery status doesnt really belong in here.
 #{'voltages': {'12V': 11977,
@@ -65,54 +62,78 @@
 #              '5V': 5053,
 #              'PCI-E  +1.8V': 1808}}
 
-def parse_areca(info, what):
-    areca_info = {}
-    areca_info[what] = {}
-    for line in info[0]:
-        if len(line) == 3:
-            id, sensor_name, value = line
-            # remove spaces from the sensor name
-            if len(sensor_name.split()) > 1:
-                s_parts = sensor_name.split()
-                sensor_name = s_parts[0] + " " + s_parts[-1]
-            areca_info[what][sensor_name] = saveint(value)
-    return areca_info        
-
-def inventory_areca_hba_voltages(info):
-    inventory = []
-
-    areca_info = parse_areca(info, "voltages")
-    for sensor_name in areca_info["voltages"].keys():
-        # Skip the battery sensor, I dont have one, impossible to
-        # make the check match for it.
-        if sensor_name.lower() != "battery status":
-            inventory.append((sensor_name, None))
-    return  inventory
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Result,
+    Service,
+    SimpleSNMPSection,
+    SNMPTree,
+    State,
+    startswith,
+)
+from cmk.plugins.lib.elphase import check_elphase
 
 
-def check_areca_hba_voltages(item, _no_params, info):
-    areca_info = parse_areca(info, "voltages")
-    epsilon = 10
-    if item in areca_info["voltages"].keys():
-        # i'm fetching the voltage from the label and try to alert on the difference.
-        v_cur   = float(areca_info["voltages"][item]) / 1000.0
-        v_rated = float(item.split()[-1].replace("V", ""))
-        perfdata = [ ( "voltage", v_cur ) ]
-        # this is now just a hardcoded level, could be improved.
-        if v_cur < v_rated - v_rated / 100*epsilon or v_cur > v_rated + v_rated / 100*epsilon:
-            return (1, "WARNING - Voltage is %02.3fV" % v_cur, perfdata)
-        else:
-            return (0, "OK - Voltage is ok", perfdata)
-    return (3, "UNKNOWN - Voltage sensor not found in agent output")
+def parse_areca_hba_voltages(string_table):
+    epsilon = 10 # allowed deviation in percent
+    section = {}
+    for id, desc, value in string_table:
+        try:
+            rated = float(desc.split()[-1].replace("V", ""))
+        except ValueError:
+            rated = None
+        section[id] = {
+            "desc": desc,
+            "rated": rated,
+            "value": float(value) / 1000.0,
+        }
+        if rated:
+            section[id]["rated_lower"] =  rated - rated / 100 * epsilon
+            section[id]["rated_upper"] = rated + rated / 100 * epsilon
+    return section
 
+def discover_areca_hba_voltages(section) -> DiscoveryResult:
+    for id in section.keys():
+        yield Service(item=id)
 
-# check_info["areca_hba_voltages"]  = {
-#     "check_function"      : check_areca_hba_voltages,
-#     "inventory_function"  : inventory_areca_hba_voltages,
-#     "has_perfdata"        : True,
-#     "service_description" : "Voltage %s",
-#     # Find Areca SAS MIB
-#     "snmp_scan_function"  : lambda oid: oid(".1.3.6.1.2.1.1.2.0").startswith(".1.3.6.1.4.1.18928.1"),
-#     "snmp_info"           : [(".1.3.6.1.4.1.18928.1.2.2.1.8.1", [ "1", "2", "3" ])],
-# }
+def check_areca_hba_voltages(item, params, section) -> CheckResult:
+    if item in section:
+        epsilon = 10
+        yield Result(state=State.OK, summary=section[item]["desc"])
+        voltage = section[item]["value"]
+        rated = section[item]["rated"]
+        if rated:
+            if voltage < section[item]["rated_lower"] or voltage > section[item]["rated_upper"]:
+                voltage = (voltage, (1, "Voltage is out of range (%.1f V - %.1f V)" % (section[item]["rated_lower"], section[item]["rated_upper"])))
+        data = {
+            item: {
+                "voltage": voltage,
+            }
+        }
+        yield from check_elphase(item, params, data)
 
+snmp_section_areca_hba_voltages = SimpleSNMPSection(
+    name="areca_hba_voltages",
+    parse_function=parse_areca_hba_voltages,
+    detect = startswith(".1.3.6.1.2.1.1.2.0", ".1.3.6.1.4.1.18928.1"),
+    fetch = SNMPTree(
+        base=".1.3.6.1.4.1.18928.1.2.2.1.8.1",
+        oids=[
+            "1", # ARECA-SNMP-MIB::hwControllerBoardVolIndex
+            "2", # ARECA-SNMP-MIB::hwControllerBoardVolDesc
+            "3", # ARECA-SNMP-MIB::hwControllerBoardVolValue
+        ],
+    ),
+)
+
+check_plugin_areca_hba_voktages = CheckPlugin(
+    name="areca_hba_voltages",
+    sections=["areca_hba_voltages"],
+    service_name="Voltage %s",
+    discovery_function=discover_areca_hba_voltages,
+    check_function=check_areca_hba_voltages,
+    check_default_parameters={},
+    check_ruleset_name="el_inphase",
+)
