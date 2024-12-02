@@ -14,7 +14,7 @@ import requests
 import warnings # type: ignore
 import os
 import json
-import time
+import time # type: ignore
 import json
 from ast import literal_eval # type: ignore
 
