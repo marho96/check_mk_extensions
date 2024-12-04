@@ -404,11 +404,20 @@ if args.func == "add_region":
             'documentation_url': '',
         },
     }
-
     for key1, value1 in config["notification_rule_config"].items():
         if key1 in rule_config:
             for key2, value2 in value1.items():
-                rule_config[key1][key2] = value2
+                if key2 in rule_config[key1]:
+                    if key1 == "conditions":
+                        if rule_config[key1][key2]["state"] == "disabled":
+                            rule_config[key1][key2] = value2
+                        else:
+                            if key2 == "match_host_tags":
+                                rule_config[key1][key2]["value"].extend(value2["value"])
+                    else:
+                        rule_config[key1][key2] = value2
+                else:
+                    rule_config[key1][key2] = value2
         else:
             rule_config[key1] = value1
 
@@ -439,7 +448,7 @@ if args.func == 'add_auto_holidays':
 if args.func == "cleanup":
     nrs, etag = cmk.get_all_notification_rules()
     for nr in nrs['value']:
-        if nr['extensions']['rule_config']['rule_properties']['comment'] == created_by:
+        if nr['extensions']['rule_config']['rule_properties']['comment'].strip() == created_by:
             if args.debug:
                 print(f"removing notification rule {nr['id']}")
             cmk.delete_notification_rule(nr['id'])
