@@ -18,33 +18,34 @@
 # Boston, MA 02110-1301 USA.
 
 # params = {
-#     'metric': 'blablub',
-#     'label': 'Label',
+#     'metric': 'fs_used',
+#     'label': 'Used Space',
 #     'levels_upper': (0.1, 10.0),
 #     'levels_lower': None,
 #     'expression': ('operator', '*', [
 #         ('operator',  '+', [
-#             ('rrd', 'cephtest21.mauerpark.heinlein-intern.de', 'Filesystem /', 'fs_used', 'max'),
-#             ('rrd', 'cephtest22.mauerpark.heinlein-intern.de', 'Filesystem /', 'fs_used', 'max'),
+#             ('rrd', 'cephtest21', 'Filesystem /', 'fs_used', 'max'),
+#             ('rrd', 'cephtest22', 'Filesystem /', 'fs_used', 'max'),
 #         ]),
-#         ('constant', 1.5),
+#         ('constant', 1048576),
 #     ]),
 # }
 
 import os
 import sys
-import socket
+import socket # type: ignore
 import json
 import math
-import argparse
+import argparse # type: ignore
 from cmk.base.plugins.agent_based.agent_based_api.v1 import (
     check_levels,
     Result,
     Metric,
     State,
 )
-from functools import reduce
-from pprint import pprint
+from functools import reduce # type: ignore
+from ast import literal_eval # type: ignore
+from pprint import pprint # type: ignore
 
 home = os.environ.get('OMD_ROOT')
 if home:
@@ -60,6 +61,7 @@ parser.add_argument('-m', '--metric')
 parser.add_argument('-o', '--levelslower', default='None')
 parser.add_argument('-u', '--levelsupper', default='None')
 parser.add_argument('-e', '--expression')
+parser.add_argument('-D', '--debug', action="store_true")
 
 args = parser.parse_args()
 
@@ -156,6 +158,8 @@ def get_metric_value(hostname, service, metric):
     query = query.columns('perf_data')
     result = query.call()
 
+    if not result:
+        raise RuntimeError(f"got no result from livestatus query '{query}'")
     for perfdata in result[0]['perf_data'].split():
         if perfdata.startswith('%s=' % metric):
             return float(perfdata.split('=')[1].split(';')[0])
@@ -176,15 +180,15 @@ def replace_metric_value(expr):
     return val
 
 try:
-    value = replace_metric_value(eval(args.expression))
+    value = replace_metric_value(literal_eval(args.expression))
 except Exception as e:
     print('Unable to compute value: %s' % e)
     sys.exit(3)
 
 for res in check_levels(
     value,
-    levels_upper=eval(args.levelsupper),
-    levels_lower=eval(args.levelslower),
+    levels_upper=literal_eval(args.levelsupper),
+    levels_lower=literal_eval(args.levelslower),
     metric_name=args.metric,
     label=args.label,
 ):
