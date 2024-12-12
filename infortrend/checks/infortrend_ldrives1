@@ -7,9 +7,9 @@
 # (c) 2024 Jens Maus <mail@jens-maus.de>
 #
 
-from cmk.base.check_api import LegacyCheckDefinition, saveint
+from cmk.base.check_api import LegacyCheckDefinition
 from cmk.base.config import check_info
-from cmk.agent_based.v2 import all_of, contains, startswith, exists, SNMPTree, StringTable
+from cmk.agent_based.v2 import all_of, contains, startswith, SNMPTree, StringTable
 
 # This is free software;  you can redistribute it and/or modify it
 # under the  terms of the  GNU General Public License  as published by
